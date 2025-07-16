@@ -123,6 +123,11 @@ const App = () => {
           <p className="value">{calculatedGpa}</p>
         </div>
       )}
+
+      {/* ✅ Final Footer Here */}
+      <footer style={{ marginTop: '2rem', textAlign: 'center', color: '#888' }}>
+        <p>Made by <strong>Rawail Ahmed</strong> | Powered by <strong>AWS</strong></p>
+      </footer>
     </div>
   );
 };

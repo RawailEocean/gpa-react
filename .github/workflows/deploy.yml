@@ -1,5 +1,4 @@
-# .github/workflows/deploy.yml
-name: Deploy React App to AWS EC2
+name: Deploy to EC2
 
 on:
   push:
@@ -14,18 +13,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Set up SSH
-      uses: webfactory/ssh-agent@v0.7.0
-      with:
-        ssh-private-key: ${{ secrets.DEPLOY_KEY }}
+    - name: Add SSH key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
 
     - name: Deploy to EC2
       run: |
-        ssh -o StrictHostKeyChecking=no ubuntu@13.60.250.203 << 'EOF'
-          cd ~/gpa-react
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key ubuntu@13.60.13.92 << 'EOF'
+          cd gpa-react || git clone https://github.com/RawailEocean/gpa-react.git && cd gpa-react
           git pull origin main
-          docker stop gpa-container || true
-          docker rm gpa-container || true
           docker build -t gpa-react .
-          docker run -d -p 80:80 --name gpa-container gpa-react
+          docker stop $(docker ps -q) || true
+          docker run -d -p 80:80 gpa-react
         EOF

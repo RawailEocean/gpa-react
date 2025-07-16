@@ -5,9 +5,18 @@ const App = () => {
   const [courses, setCourses] = useState([]);
   const [calculatedGpa, setCalculatedGpa] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [visitorCount, setVisitorCount] = useState(null); // 👈 new
 
   useEffect(() => {
     setCourses([{ id: Date.now(), name: '', gpa: '', credits: '' }]);
+
+    // 👇 Visitor tracking
+    fetch('https://api.countapi.xyz/hit/gpa-calculator/rawail')
+      .then(res => res.json())
+      .then(data => {
+        setVisitorCount(data.value);
+        console.log('Visitor count:', data.value);
+      });
   }, []);
 
   const addCourse = () => {
@@ -54,13 +63,8 @@ const App = () => {
       totalCreditHours += credits;
     }
 
-    if (hasError) {
-      setCalculatedGpa(null);
-      return;
-    }
-
-    if (totalCreditHours === 0) {
-      setErrorMessage('Total credit hours cannot be zero. Please add at least one course.');
+    if (hasError || totalCreditHours === 0) {
+      setErrorMessage('Total credit hours cannot be zero. Please add at least one valid course.');
       setCalculatedGpa(null);
       return;
     }
@@ -100,10 +104,7 @@ const App = () => {
             step="0.5"
           />
           {courses.length > 1 && (
-            <button
-              onClick={() => removeCourse(course.id)}
-              className="remove"
-            >
+            <button onClick={() => removeCourse(course.id)} className="remove">
               X
             </button>
           )}
@@ -124,9 +125,12 @@ const App = () => {
         </div>
       )}
 
-      {/* ✅ Final Footer */}
+      {/* ✅ Footer with visitor count */}
       <footer style={{ marginTop: '2rem', textAlign: 'center', color: '#888' }}>
         <p>Made by <strong>Rawail Ahmed</strong> | Powered by <strong>AWS</strong></p>
+        {visitorCount !== null && (
+          <p style={{ fontSize: '0.9rem' }}>👀 Visitors: <strong>{visitorCount}</strong></p>
+        )}
       </footer>
     </div>
   );

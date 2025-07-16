@@ -52,4 +52,7 @@ jobs:
           
           # Clean up old images
           docker image prune -f
+
         EOF
+
+

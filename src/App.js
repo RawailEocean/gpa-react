@@ -124,7 +124,7 @@ const App = () => {
         </div>
       )}
 
-      {/* ✅ Final Footer Here */}
+      {/* ✅ Final Footer */}
       <footer style={{ marginTop: '2rem', textAlign: 'center', color: '#888' }}>
         <p>Made by <strong>Rawail Ahmed</strong> | Powered by <strong>AWS</strong></p>
       </footer>

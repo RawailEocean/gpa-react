@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  gpa-react-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gpa-react-container
+    ports:
+      - "80:80"  # Maps container port 80 to host port 80
+    restart: unless-stopped

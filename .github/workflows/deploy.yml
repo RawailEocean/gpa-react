@@ -1,3 +1,4 @@
+# Trigger redeploy manually or on push
 name: Deploy to EC2
 
 on:
@@ -12,46 +13,42 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Configure SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H 13.60.13.92 >> ~/.ssh/known_hosts
+    - name: Configure SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -H 13.60.13.92 >> ~/.ssh/known_hosts
 
-      - name: Test SSH connection
-        run: ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 'echo "SSH connection successful"'
+    - name: Deploy to EC2
+      run: |
+        ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 << 'EOF'
+          set -e  # Stop on errors
 
-      - name: Deploy to EC2
-        run: |
-          ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 << 'EOF'
-            set -e
+          # Kill any process using port 80
+          sudo lsof -t -i:80 | xargs -r sudo kill -9
 
-            # Kill any process using port 80
-            if lsof -i :80; then
-              echo "Port 80 is in use. Killing the process..."
-              sudo fuser -k 80/tcp || true
-            fi
+          # Remove any existing container
+          docker rm -f gpa-react-container || true
 
-            # Stop and remove any existing Docker container
-            docker rm -f gpa-react-container || true
+          # Clone or pull latest code
+          if [ -d "gpa-react" ]; then
+            cd gpa-react
+            git pull origin main
+          else
+            git clone https://github.com/RawailEocean/gpa-react.git
+            cd gpa-react
+          fi
 
-            # Navigate to or clone the repo
-            if [ -d "gpa-react" ]; then
-              cd gpa-react
-              git pull origin main
-            else
-              git clone https://github.com/RawailEocean/gpa-react.git
-              cd gpa-react
-            fi
+          # Build Docker image
+          docker build -t gpa-react .
 
-            # Build and run
-            docker build -t gpa-react .
-            docker run -d --name gpa-react-container -p 80:80 gpa-react
+          # Run container on port 80
+          docker run -d --name gpa-react-container -p 80:80 gpa-react
 
-            # Clean up
-            docker image prune -f
-          EOF
+          # Prune unused images
+          docker image prune -f
+        EOF

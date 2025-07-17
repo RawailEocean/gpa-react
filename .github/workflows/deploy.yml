@@ -9,27 +9,21 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30  # ⬅️ Increased timeout
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure SSH
+      - name: Setup SSH and known hosts
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          cat ~/.ssh/deploy_key | head -n 2  # ⬅️ TEMP DEBUG
           ssh-keyscan -H 13.60.13.92 >> ~/.ssh/known_hosts
 
-      - name: Test SSH connection
-        run: ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 'echo "SSH connection successful"'
-
       - name: Copy deploy script to EC2
-        run: |
-          scp -i ~/.ssh/deploy_key ./deploy.sh ubuntu@13.60.13.92:/home/ubuntu/deploy.sh
+        run: scp -i ~/.ssh/deploy_key ./deploy.sh ubuntu@13.60.13.92:/home/ubuntu/deploy.sh
 
       - name: Run deploy script on EC2
-        run: |
-          ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 'bash ~/deploy.sh'
+        run: ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 'bash /home/ubuntu/deploy.sh'

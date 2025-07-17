@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -30,14 +30,13 @@ jobs:
           ssh -tt -i ~/.ssh/deploy_key ubuntu@13.60.13.92 << 'EOF'
             set -e
 
-            echo "🛑 Checking for any process on port 80..."
+            echo "🛑 Killing any process using port 80..."
             sudo lsof -t -i:80 | xargs -r sudo kill -9 || true
 
-            echo "🐳 Stopping all Docker containers using port 80..."
-            docker ps --filter "publish=80" -q | xargs -r docker stop || true
-            docker ps -a --filter "publish=80" -q | xargs -r docker rm || true
+            echo "🧹 Removing old Docker container (if exists)..."
+            docker rm -f gpa-react-container || true
 
-            echo "📦 Cloning or pulling latest code..."
+            echo "📦 Cloning or updating repo..."
             if [ -d "gpa-react" ]; then
               cd gpa-react
               git pull origin main
@@ -49,9 +48,9 @@ jobs:
             echo "🔨 Building Docker image..."
             docker build -t gpa-react .
 
-            echo "🚀 Running new Docker container..."
+            echo "🚀 Running Docker container..."
             docker run -d --name gpa-react-container -p 80:80 gpa-react
 
-            echo "🧹 Cleaning up unused Docker images..."
+            echo "🧹 Cleaning up old Docker images..."
             docker image prune -f
           EOF

@@ -1,58 +1,54 @@
-# Trigger redeploy manually
+# Trigger redeploy manually or on push to main
 name: Deploy to EC2
+
 on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:  # Allow manual trigger from GitHub UI
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4  # Updated to v4
-      
-    - name: Configure SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        ssh-keyscan -H 13.60.13.92 >> ~/.ssh/known_hosts
-        
-    - name: Test SSH Connection
-      run: |
-        ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 'echo "SSH connection successful"'
-        
-    - name: Deploy to EC2
-      run: |
-        ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 << 'EOF'
-          set -e  # Exit on any error
-          
-          # Navigate to or clone repository
-          if [ -d "gpa-react" ]; then
-            cd gpa-react
-            git pull origin main
-          else
-            git clone https://github.com/RawailEocean/gpa-react.git
-            cd gpa-react
-          fi
-          
-          # Build Docker image
-          docker build -t gpa-react .
-          
-          # Stop existing container (if any)
-          docker stop gpa-react-container || true
-          docker rm gpa-react-container || true
-          
-          # Run new container
-          docker run -d --name gpa-react-container -p 80:80 gpa-react
-          
-          # Clean up old images
-          docker image prune -f
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        EOF
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H 13.60.13.92 >> ~/.ssh/known_hosts
 
+      - name: Test SSH connection
+        run: ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 'echo "SSH connection successful"'
 
+      - name: Deploy to EC2
+        run: |
+          ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 << 'EOF'
+            set -e  # Exit on error
+            
+            # Stop and remove any existing container
+            docker rm -f gpa-react-container || true
+            
+            # Clone repo if not exists, otherwise pull latest
+            if [ -d "gpa-react" ]; then
+              cd gpa-react
+              git pull origin main
+            else
+              git clone https://github.com/RawailEocean/gpa-react.git
+              cd gpa-react
+            fi
+
+            # Build the Docker image
+            docker build -t gpa-react .
+
+            # Run new container
+            docker run -d --name gpa-react-container -p 80:80 gpa-react
+
+            # Optional: Clean up unused images
+            docker image prune -f
+          EOF

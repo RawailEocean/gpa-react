@@ -1,11 +1,10 @@
-# Trigger redeploy manually or on push to main
 name: Deploy to EC2
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -29,12 +28,18 @@ jobs:
       - name: Deploy to EC2
         run: |
           ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 << 'EOF'
-            set -e  # Exit on error
-            
-            # Stop and remove any existing container
+            set -e
+
+            # Kill any process using port 80
+            if lsof -i :80; then
+              echo "Port 80 is in use. Killing the process..."
+              sudo fuser -k 80/tcp || true
+            fi
+
+            # Stop and remove any existing Docker container
             docker rm -f gpa-react-container || true
-            
-            # Clone repo if not exists, otherwise pull latest
+
+            # Navigate to or clone the repo
             if [ -d "gpa-react" ]; then
               cd gpa-react
               git pull origin main
@@ -43,12 +48,10 @@ jobs:
               cd gpa-react
             fi
 
-            # Build the Docker image
+            # Build and run
             docker build -t gpa-react .
-
-            # Run new container
             docker run -d --name gpa-react-container -p 80:80 gpa-react
 
-            # Optional: Clean up unused images
+            # Clean up
             docker image prune -f
           EOF

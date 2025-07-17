@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   deploy:
@@ -22,24 +22,22 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H 13.60.13.92 >> ~/.ssh/known_hosts
 
-      - name: Test SSH connection
-        run: ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 'echo "SSH connection successful"'
+      - name: Test SSH Connection
+        run: ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 'echo "✅ SSH connection successful"'
 
       - name: Deploy to EC2
         run: |
           ssh -tt -i ~/.ssh/deploy_key ubuntu@13.60.13.92 << 'EOF'
             set -e
 
-            # Kill any process using port 80
-            if lsof -i :80; then
-              echo "Port 80 is in use. Killing the process..."
-              sudo fuser -k 80/tcp || true
-            fi
+            echo "🛑 Checking for any process on port 80..."
+            sudo lsof -t -i:80 | xargs -r sudo kill -9 || true
 
-            # Stop and remove any existing Docker container
-            docker rm -f gpa-react-container || true
+            echo "🐳 Stopping all Docker containers using port 80..."
+            docker ps --filter "publish=80" -q | xargs -r docker stop || true
+            docker ps -a --filter "publish=80" -q | xargs -r docker rm || true
 
-            # Navigate to or clone the repo
+            echo "📦 Cloning or pulling latest code..."
             if [ -d "gpa-react" ]; then
               cd gpa-react
               git pull origin main
@@ -48,10 +46,12 @@ jobs:
               cd gpa-react
             fi
 
-            # Build and run
+            echo "🔨 Building Docker image..."
             docker build -t gpa-react .
+
+            echo "🚀 Running new Docker container..."
             docker run -d --name gpa-react-container -p 80:80 gpa-react
 
-            # Clean up
+            echo "🧹 Cleaning up unused Docker images..."
             docker image prune -f
           EOF

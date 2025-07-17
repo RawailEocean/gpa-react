@@ -9,7 +9,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20  # ⬅️ Increased timeout from 10 to 20 minutes
 
     steps:
       - name: Checkout code
@@ -22,24 +22,20 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H 13.60.13.92 >> ~/.ssh/known_hosts
 
-      - name: Test SSH Connection
-        run: ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 'echo "✅ SSH connection successful"'
+      - name: Test SSH connection
+        run: ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 'echo "SSH connection successful"'
 
       - name: Deploy to EC2
         run: |
-          ssh -tt -i ~/.ssh/deploy_key ubuntu@13.60.13.92 << 'EOF'
+          ssh -i ~/.ssh/deploy_key ubuntu@13.60.13.92 << 'EOF'
             set -e
 
-            echo "🛑 Killing any process using port 80..."
-            sudo lsof -t -i:80 | xargs -r sudo kill -9 || true
-
-            echo "🧹 Removing old Docker container (if exists)..."
+            echo "🧹 Cleaning up old container if exists..."
             docker rm -f gpa-react-container || true
 
-            echo "📦 Cloning or updating repo..."
+            echo "📦 Navigating to app directory..."
             if [ -d "gpa-react" ]; then
-              cd gpa-react
-              git pull origin main
+              cd gpa-react && git pull origin main
             else
               git clone https://github.com/RawailEocean/gpa-react.git
               cd gpa-react
@@ -48,9 +44,9 @@ jobs:
             echo "🔨 Building Docker image..."
             docker build -t gpa-react .
 
-            echo "🚀 Running Docker container..."
+            echo "🚀 Running new Docker container..."
             docker run -d --name gpa-react-container -p 80:80 gpa-react
 
-            echo "🧹 Cleaning up old Docker images..."
+            echo "🧹 Cleaning up unused Docker images..."
             docker image prune -f
           EOF
